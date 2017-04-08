@@ -3,6 +3,10 @@ const client = new Discord.Client();
 
 const auth = require('./auth.json');
 const fs = require('fs');
+const pcmUtil = require('pcm-util');
+const AudioBuffer = require('audio-buffer');
+
+const Readable = require('stream').Readable
 
 client.on('ready', () =>  {
 	console.log("I am ready!");
@@ -63,11 +67,24 @@ function recNextVoice() {
     if (conns !== undefined && conns[0] !== undefined) {
         receiver = conns[0].createReceiver();
         conns[0].on('speaking', (user, speaking) => {
+        	console.log('speaking? ' + speaking);
             if (speaking) {
                 stream = receiver.createPCMStream("163947791729557504");
                 streams.push(stream);
             } else {
-                conns[0].playConvertedStream(streams.pop());
+            	s = streams.pop();
+            	var bufs = [];
+				s.on('data', function(d){ bufs.push(d); });
+				s.on('end', function(){
+				  	var buf = Buffer.concat(bufs);
+	            	audioBuf = pcmUtil.toAudioBuffer(buf);
+	            	abUtil = require('audio-buffer-utils');
+	            	shorterBuffer = pcmUtil.toBuffer(abUtil.slice(audioBuf,0,audioBuf.length/2));
+	            	shorterStream = new Readable();
+	            	shorterStream.push(shorterBuffer);
+	            	console.log(shorterStream);
+					conns[0].playConvertedStream(shorterStream);
+				});
             }
         });
     }
