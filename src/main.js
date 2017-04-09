@@ -58,6 +58,10 @@ client.on('message', m => {
 		console.log('Listening to voice');
 		recNextVoice();
 	}
+	if(m.content.startsWith('/play')) {
+		console.log('Playing voice');
+		playVoice();
+	}
 });
 // 163947791729557504
 // 
@@ -70,25 +74,42 @@ function recNextVoice() {
             if (speaking) {
                 var stream = receiver.createPCMStream("163947791729557504");
                 streams.push(stream);
-            } else {
-            	var s = streams.pop();
-            	var bufs = [];
-				s.on('data', function(d) { 
-					bufs.push(d); 
-				});
-				s.on('end', function() {
-	            	const shorterStream = editBuffer(Buffer.concat(bufs));
-	            	console.log(shorterStream);
-					conns[0].playConvertedStream(shorterStream);
-				});
             }
         });
     }
 }
 
+function playVoice() {
+	processData(streams, function(buffers) {
+		const shorterStream = editBuffer(Buffer.concat(buffers));
+		console.log(shorterStream);
+		console.log("playing now");
+		conns[0].playConvertedStream(shorterStream);
+	});
+}
+
+function processData(streams, callback) {
+	var bufs = [];
+	var finished = 0;
+	const initialStreamsLength = streams.length;
+	for(i = 0; i < initialStreamsLength; ++i) {
+		s = streams.shift();
+		s.on('data', function(d) { 
+			bufs.push(d); 
+		});
+		s.on('end', function() {
+			if(++finished === initialStreamsLength) {
+				callback(bufs);
+			}
+		});
+	}
+}
+
 function editBuffer(buffer) {
+	const defaultSampleRate = pcmUtil.defaults.sampleRate;
 	var audioBuf = pcmUtil.toAudioBuffer(buffer);
-	var modifiedBuffer = abUtil.slice(audioBuf,0,audioBuf.length/2);
+	const lengthInSec = 10;
+	var modifiedBuffer = abUtil.slice(audioBuf,0,lengthInSec*defaultSampleRate);
 	var shorterBuffer = pcmUtil.toBuffer(modifiedBuffer);
 	var shorterStream = new Readable();
 	shorterStream.push(shorterBuffer);
