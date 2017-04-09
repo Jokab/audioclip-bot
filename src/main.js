@@ -34,10 +34,10 @@ client.on('message', m => {
 			} else {
 				channelToJoin.join()
 					.then(connection => {
-						console.log('Connected to channel ' + channelToJoin.name);
+						console.log('Successfully connected to channel ' + channelToJoin.name);
 						conns.push(connection);
 					})
-						.catch(connection => console.log('Unable to connect to channel ' + channelToJoin.name));
+					.catch(connection => console.log('Unable to connect to channel ' + channelToJoin.name));
 			}
 		}
 	}
@@ -48,14 +48,14 @@ client.on('message', m => {
 			console.log("Left voice channel " + conns[0].channel);
 			conns.splice(0,1);
 		} else {
-			console.log('Not connected to any channel');
+			console.log('Can\'t leave when not connected to a channel');
 		}
 	}
 	if(m.content.startsWith('/rec')) {
 		//console.log(conns[0].channel.speakable);
 		// play streams using ytdl-core
 		//playYoutube();
-
+		console.log('Listening to voice');
 		recNextVoice();
 	}
 });
@@ -71,13 +71,13 @@ function recNextVoice() {
                 var stream = receiver.createPCMStream("163947791729557504");
                 streams.push(stream);
             } else {
-            	const s = streams.pop();
-            	const bufs = [];
+            	var s = streams.pop();
+            	var bufs = [];
 				s.on('data', function(d) { 
 					bufs.push(d); 
 				});
 				s.on('end', function() {
-	            	const shorterStream = editBuffer(Buffer.concat(bufs))
+	            	const shorterStream = editBuffer(Buffer.concat(bufs));
 	            	console.log(shorterStream);
 					conns[0].playConvertedStream(shorterStream);
 				});
@@ -87,13 +87,13 @@ function recNextVoice() {
 }
 
 function editBuffer(buffer) {
-	var audioBuf = pcmUtil.toAudioBuffer(buf);
-	const modifiedBuffer = abUtil.slice(audioBuf,0,audioBuf.length/2);
-	const shorterBuffer = pcmUtil.toBuffer();
+	var audioBuf = pcmUtil.toAudioBuffer(buffer);
+	var modifiedBuffer = abUtil.slice(audioBuf,0,audioBuf.length/2);
+	var shorterBuffer = pcmUtil.toBuffer(modifiedBuffer);
 	var shorterStream = new Readable();
 	shorterStream.push(shorterBuffer);
 
-	return shorterStream
+	return shorterStream;
 }
 
 function playYoutube() {
