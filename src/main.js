@@ -1,3 +1,5 @@
+'use strict'
+
 const Discord = require('discord.js');
 const client = new Discord.Client();
 const auth = require('./auth.json');
@@ -52,12 +54,21 @@ client.on('message', m => {
 		}
 	}
 	if(m.content.startsWith('/rec')) {
-		//console.log(conns[0].channel.speakable);
-		// play streams using ytdl-core
-		//playYoutube();
-		console.log('Listening to voice');
-		recNextVoice();
+		const args = m.content.split(' ');
+		if(args.length < 2) {
+			console.log('Please specify a user to record');
+		} else {
+			const userName = args[1];
+			const userId = lookupUser(userName, m.guild);
+			if(userId === undefined) {
+				console.log('User to record does not seem to exist');
+			} else {
+				console.log('Listening to voice of user ' + userName + ' (ID: ' + userId + ')');
+				recVoice(userId);
+			}
+		}
 	}
+
 	if(m.content.startsWith('/play')) {
 		console.log('Playing voice');
 		playVoice();
@@ -65,14 +76,20 @@ client.on('message', m => {
 });
 // 163947791729557504
 // 
+// 
+function lookupUser(userName, guild) {
+	const memberList = guild.members;
+	return memberList.keyArray().find(key => memberList.get(key).user.username === userName);
+}
+
 let streams = [];
-function recNextVoice() {
+function recVoice(userId) {
     if (conns !== undefined && conns[0] !== undefined) {
         var receiver = conns[0].createReceiver();
         conns[0].on('speaking', (user, speaking) => {
         	console.log('speaking? ' + speaking);
             if (speaking) {
-                var stream = receiver.createPCMStream("163947791729557504");
+                var stream = receiver.createPCMStream(userId);
                 streams.push(stream);
             }
         });
@@ -92,8 +109,8 @@ function processData(streams, callback) {
 	var bufs = [];
 	var finished = 0;
 	const initialStreamsLength = streams.length;
-	for(i = 0; i < initialStreamsLength; ++i) {
-		s = streams.shift();
+	for(var i = 0; i < initialStreamsLength; ++i) {
+		var 	s = streams.shift();
 		s.on('data', function(d) { 
 			bufs.push(d); 
 		});
