@@ -23,21 +23,19 @@ client.login(auth.token)
 	.then(atoken => console.log('Logged in with token: ' + atoken))
 	.catch(console.error);
 
-const conns = [];
+const conns = {};
 
 client.on('message', m => {
 	if(m.content.startsWith('/join')) {
-		const channelId = m.content.split(' ')[1];
-		const msgChannels = m.guild.channels;
-		const channelToJoin = msgChannels.get(channelId);
+		const channelToJoin = m.guild.channels.get(m.content.split(' ')[1]) || m.member.voiceChannel;
 		if(channelToJoin && channelToJoin.type === 'voice') {
-			if(conns !== undefined && conns[0] !== undefined && conns[0].channel === channelToJoin) {
-				console.log('Already connected to channel ' + channelToJoin);
+			if(conns[m.guild.id] !== undefined && conns[m.guild.id].channel === channelToJoin) {
+				console.log('Already connected to voice channel ' + channelToJoin.name);
 			} else {
 				channelToJoin.join()
 					.then(connection => {
 						console.log('Successfully connected to channel ' + channelToJoin.name);
-						conns.push(connection);
+						conns[m.guild.id] = connection;
 					})
 					.catch(connection => console.log('Unable to connect to channel ' + channelToJoin.name));
 			}
@@ -45,10 +43,10 @@ client.on('message', m => {
 	}
 
 	if(m.content.startsWith('/leave')) {
-		if(conns !== undefined && conns[0] !== undefined) {
-			conns[0].disconnect();
-			console.log("Left voice channel " + conns[0].channel);
-			conns.splice(0,1);
+		if(conns[m.guild.id] !== undefined) {
+			conns[m.guild.id].disconnect();
+			console.log("Left voice channel " + conns[m.guild.id].channel.name);
+			delete conns[m.guild.id];
 		} else {
 			console.log('Can\'t leave when not connected to a channel');
 		}
@@ -64,14 +62,22 @@ client.on('message', m => {
 				console.log('User to record does not seem to exist');
 			} else {
 				console.log('Listening to voice of user ' + userName + ' (ID: ' + userId + ')');
-				recVoice(userId);
+				recVoice(userId, m.guild.id);
 			}
 		}
 	}
 
 	if(m.content.startsWith('/play')) {
+		const maxSeconds = 60;
+		var secondsToPlay = m.content.split(' ')[1];
+		if(secondsToPlay > maxSeconds) {
+			console.log(`Not playing more than #{maxSeconds} seconds. Defaulting to #{maxSeconds}.`);
+			secondsToPlay = maxSeconds;
+		} else {
+			secondsToPlay = parseInt(secondsToPlay);
+		}
 		console.log('Playing voice');
-		playVoice();
+		playVoice(secondsToPlay, m.guild.id);
 	}
 });
 // 163947791729557504
@@ -83,10 +89,10 @@ function lookupUser(userName, guild) {
 }
 
 let streams = [];
-function recVoice(userId) {
-    if (conns !== undefined && conns[0] !== undefined) {
-        var receiver = conns[0].createReceiver();
-        conns[0].on('speaking', (user, speaking) => {
+function recVoice(userId, guildId) {
+    if (conns[guildId] !== undefined) {
+        var receiver = conns[guildId].createReceiver();
+        conns[guildId].on('speaking', (user, speaking) => {
         	console.log('speaking? ' + speaking);
             if (speaking) {
                 var stream = receiver.createPCMStream(userId);
@@ -96,12 +102,10 @@ function recVoice(userId) {
     }
 }
 
-function playVoice() {
+function playVoice(seconds, guildId) {
 	processData(streams, function(buffers) {
-		const shorterStream = editBuffer(Buffer.concat(buffers));
-		console.log(shorterStream);
-		console.log("playing now");
-		conns[0].playConvertedStream(shorterStream);
+		const shorterStream = editBuffer(Buffer.concat(buffers), seconds);
+		conns[guildId].playConvertedStream(shorterStream);
 	});
 }
 
@@ -110,7 +114,7 @@ function processData(streams, callback) {
 	var finished = 0;
 	const initialStreamsLength = streams.length;
 	for(var i = 0; i < initialStreamsLength; ++i) {
-		var 	s = streams.shift();
+		var s = streams.shift();
 		s.on('data', function(d) { 
 			bufs.push(d); 
 		});
@@ -122,11 +126,10 @@ function processData(streams, callback) {
 	}
 }
 
-function editBuffer(buffer) {
+function editBuffer(buffer, seconds) {
 	const defaultSampleRate = pcmUtil.defaults.sampleRate;
 	var audioBuf = pcmUtil.toAudioBuffer(buffer);
-	const lengthInSec = 10;
-	var modifiedBuffer = abUtil.slice(audioBuf,0,lengthInSec*defaultSampleRate);
+	var modifiedBuffer = abUtil.slice(audioBuf,0,seconds*defaultSampleRate);
 	var shorterBuffer = pcmUtil.toBuffer(modifiedBuffer);
 	var shorterStream = new Readable();
 	shorterStream.push(shorterBuffer);
