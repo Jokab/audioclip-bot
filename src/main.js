@@ -77,6 +77,7 @@ client.on('message', m => {
 
 	if(m.content.startsWith('/clip')) {
 		const seconds = getSeconds(m);
+		console.log(seconds);
 		doClip(seconds, m.guild.id, uploadVoice);
 	}
 });
@@ -86,12 +87,17 @@ client.on('message', m => {
 
 function getSeconds(message) {
 	const maxSeconds = 60;
+	const defaultSec = 30;
 	var secondsToPlay = message.content.split(' ')[1];
-	if(secondsToPlay > maxSeconds) {
-		console.log(`Not playing more than #{maxSeconds} seconds. Defaulting to #{maxSeconds}.`);
-		secondsToPlay = maxSeconds;
+	if(secondsToPlay === undefined) {
+		secondsToPlay = defaultSec;		
 	} else {
-		secondsToPlay = parseInt(secondsToPlay);
+		if(secondsToPlay > maxSeconds) {
+			console.log(`Not playing more than #{maxSeconds} seconds. Defaulting to #{maxSeconds}.`);
+			secondsToPlay = maxSeconds;
+		} else {
+			secondsToPlay = parseInt(secondsToPlay);
+		}
 	}
 
 	return secondsToPlay;
@@ -141,8 +147,9 @@ function doClip(seconds, guildId, clipHandler) {
 
 function uploadVoice(stream, guildId) {
 	const outputFile = 'libfile.wav';
-	saveStream(stream, outputFile);
-	//aws.upload(shorterStream);
+	saveStream(stream, outputFile, function() {
+		aws.upload(outputFile);
+	});
 }
 
 function playVoice(stream, guildId) {
@@ -166,9 +173,7 @@ function processStream(streams, callback) {
 	}
 }
 
-function saveStream(stream, fileName) {
-
-
+function saveStream(stream, fileName, callback) {
 	// Need to specify how the input stream is built. In this example we use
 	// signed 16-bit little endian PCM audio at 44100Hz and two channels
 	var command = ffmpeg()
@@ -178,6 +183,10 @@ function saveStream(stream, fileName) {
 			'-ar 44.1k',
 			'-ac 2'])
 		.output(fileName)
+		.on('end', () => {
+			console.log("Finished saving file.");
+			callback();
+		})
 		.run()
 }
 
