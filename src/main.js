@@ -71,21 +71,32 @@ client.on('message', m => {
 	}
 
 	if(m.content.startsWith('/play')) {
-		const maxSeconds = 60;
-		var secondsToPlay = m.content.split(' ')[1];
-		if(secondsToPlay > maxSeconds) {
-			console.log(`Not playing more than #{maxSeconds} seconds. Defaulting to #{maxSeconds}.`);
-			secondsToPlay = maxSeconds;
-		} else {
-			secondsToPlay = parseInt(secondsToPlay);
-		}
-		console.log('Playing voice');
-		playVoice(secondsToPlay, m.guild.id);
+		const seconds = getSeconds(m);
+		doClip(seconds, m.guild.id, playVoice);
+	}
+
+	if(m.content.startsWith('/clip')) {
+		const seconds = getSeconds(m);
+		doClip(seconds, m.guild.id, uploadVoice);
 	}
 });
 // 163947791729557504
 // 
 // 
+
+function getSeconds(message) {
+	const maxSeconds = 60;
+	var secondsToPlay = message.content.split(' ')[1];
+	if(secondsToPlay > maxSeconds) {
+		console.log(`Not playing more than #{maxSeconds} seconds. Defaulting to #{maxSeconds}.`);
+		secondsToPlay = maxSeconds;
+	} else {
+		secondsToPlay = parseInt(secondsToPlay);
+	}
+
+	return secondsToPlay;
+}
+
 function lookupUser(userName, guild) {
 	const memberList = guild.members;
 	return memberList.keyArray().find(key => memberList.get(key).user.username === userName);
@@ -112,21 +123,30 @@ function recVoice(userId, guildId) {
  * @param  {[type]} guildId The guild in which voice will be played to the
  * available voice connection.
  */
-function playVoice(seconds, guildId) {
+function doClip(seconds, guildId, clipHandler) {
 	// Need to wait for reading from stream to fully finish before
 	// attempting to edit it
 	processStream(streams, function(buffers) {
 		// Need to concatenate the buffers to make pcm-util and audio-buffers
 		// read them correctly
 		const shorterStream = editBuffer(Buffer.concat(buffers), seconds);
-		//conns[guildId].playConvertedStream(shorterStream);
-		//aws.upload(shorterStream);
 		
 		// Pushing an extra null here is necessary in order to make it pipeable
 		shorterStream.push(null);
 
-		saveStream(shorterStream);
+		// Do something with the clipped audio
+		clipHandler(shorterStream, guildId);
 	});
+}
+
+function uploadVoice(stream, guildId) {
+	const outputFile = 'libfile.wav';
+	saveStream(stream, outputFile);
+	//aws.upload(shorterStream);
+}
+
+function playVoice(stream, guildId) {
+	conns[guildId].playConvertedStream(stream);
 }
 
 function processStream(streams, callback) {
@@ -146,8 +166,8 @@ function processStream(streams, callback) {
 	}
 }
 
-function saveStream(stream) {
-	const outputFile = 'libfile.wav';
+function saveStream(stream, fileName) {
+
 
 	// Need to specify how the input stream is built. In this example we use
 	// signed 16-bit little endian PCM audio at 44100Hz and two channels
@@ -157,7 +177,7 @@ function saveStream(stream) {
 			'-f s16le',
 			'-ar 44.1k',
 			'-ac 2'])
-		.output(outputFile)
+		.output(fileName)
 		.run()
 }
 
