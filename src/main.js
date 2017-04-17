@@ -8,6 +8,9 @@ const pcmUtil = require('pcm-util');
 const AudioBuffer = require('audio-buffer');
 const abUtil = require('audio-buffer-utils');
 const Readable = require('stream').Readable
+const aws = require('./aws.js');
+const cp = require('child_process');
+const ffmpeg = require('fluent-ffmpeg');
 
 client.on('ready', () =>  {
 	console.log("I am ready!");
@@ -116,7 +119,13 @@ function playVoice(seconds, guildId) {
 		// Need to concatenate the buffers to make pcm-util and audio-buffers
 		// read them correctly
 		const shorterStream = editBuffer(Buffer.concat(buffers), seconds);
-		conns[guildId].playConvertedStream(shorterStream);
+		//conns[guildId].playConvertedStream(shorterStream);
+		//aws.upload(shorterStream);
+		
+		// Pushing an extra null here is necessary in order to make it pipeable
+		shorterStream.push(null);
+
+		saveStream(shorterStream);
 	});
 }
 
@@ -135,6 +144,21 @@ function processStream(streams, callback) {
 			}
 		});
 	}
+}
+
+function saveStream(stream) {
+	const outputFile = 'libfile.wav';
+
+	// Need to specify how the input stream is built. In this example we use
+	// signed 16-bit little endian PCM audio at 44100Hz and two channels
+	var command = ffmpeg()
+		.input(stream)
+		.inputOptions([
+			'-f s16le',
+			'-ar 44.1k',
+			'-ac 2'])
+		.output(outputFile)
+		.run()
 }
 
 function editBuffer(buffer, seconds) {
