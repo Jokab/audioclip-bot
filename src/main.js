@@ -102,14 +102,25 @@ function recVoice(userId, guildId) {
     }
 }
 
+/**
+ * Play `seconds` of the currently collected streams to the current voice
+ * connection in the specified guild.
+ * @param  {int} seconds The amount of seconds to play
+ * @param  {[type]} guildId The guild in which voice will be played to the
+ * available voice connection.
+ */
 function playVoice(seconds, guildId) {
-	processData(streams, function(buffers) {
+	// Need to wait for reading from stream to fully finish before
+	// attempting to edit it
+	processStream(streams, function(buffers) {
+		// Need to concatenate the buffers to make pcm-util and audio-buffers
+		// read them correctly
 		const shorterStream = editBuffer(Buffer.concat(buffers), seconds);
 		conns[guildId].playConvertedStream(shorterStream);
 	});
 }
 
-function processData(streams, callback) {
+function processStream(streams, callback) {
 	var bufs = [];
 	var finished = 0;
 	const initialStreamsLength = streams.length;
