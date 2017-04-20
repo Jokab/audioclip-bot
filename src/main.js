@@ -9,17 +9,10 @@ const AudioBuffer = require('audio-buffer');
 const abUtil = require('audio-buffer-utils');
 const Readable = require('stream').Readable
 const aws = require('./aws.js');
-const cp = require('child_process');
 const ffmpeg = require('fluent-ffmpeg');
 
 client.on('ready', () =>  {
 	console.log("I am ready!");
-});
-
-client.on('message', message => {
-	if(message.content === 'ping') {
-		message.reply('pong');
-	}
 });
 
 client.login(auth.token)
@@ -81,9 +74,6 @@ client.on('message', m => {
 		doClip(seconds, m.channel, uploadVoice);
 	}
 });
-// 163947791729557504
-// 
-// 
 
 function getSeconds(message) {
 	const maxSeconds = 60;
@@ -148,10 +138,11 @@ function doClip(seconds, textChannel, clipHandler) {
 function uploadVoice(stream, textChannel) {
 	const outputFile = 'libfile.mp3';
 	saveStream(stream, outputFile, function() {
-		aws.upload(outputFile).then((fileUrl) => {
+		aws.upload(outputFile)
+		.then((fileUrl) => {
 			textChannel.sendMessage('File uploaded! URL: ' + fileUrl);
-		}).catch((error) => console.log(error));
-		
+		})
+		.catch((error) => console.log(error));		
 	});
 }
 
@@ -191,9 +182,6 @@ function saveStream(stream, fileName, callback) {
 			callback();
 		})
 		.save(fileName)
-	
-	//var command = ffmpeg('./logo.png')
-	//	.save('gen.avi')
 }
 
 function editBuffer(buffer, seconds) {
