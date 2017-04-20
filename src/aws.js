@@ -1,13 +1,10 @@
 'use strict'
 
-var AWS = require('aws-sdk');
+const AWS = require('aws-sdk');
 const fs = require('fs');
-//var uuid = require('node-uuid');
 
 function upload(file) {
 	var s3 = new AWS.S3({signatureVersion: 'v4'});
-
-
 
 	return new Promise((resolve, reject) => {
 		fs.readFile(file, function(err,data) {
@@ -16,10 +13,10 @@ function upload(file) {
 			}
 			var params = {
 				Bucket: 'audioclip-bot', 
-				Key: 'test.wav', 
+				Key: file, 
 				Body: data,
-				ACL: 'public-read',
-				ContentType: 'audio/wav'
+				ACL: 'public-read', // anyone can read the file
+				ContentType: 'audio/wav' // enables playing in browser from link
 			};
 
 			s3.upload(params, function(err,data) {
