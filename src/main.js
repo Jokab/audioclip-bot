@@ -3,7 +3,6 @@
 const Discord = require('discord.js');
 const client = new Discord.Client();
 const auth = require('./auth.json');
-const fs = require('fs');
 const pcmUtil = require('pcm-util');
 const AudioBuffer = require('audio-buffer');
 const abUtil = require('audio-buffer-utils');
@@ -151,11 +150,11 @@ function playVoice(stream, guildId) {
 	conns[guildId].playConvertedStream(stream);
 }
 
-function processStream(streams, callback) {
+function processStream(streams) {
 	var bufs = [];
 	var finished = 0;
 	const initialStreamsLength = streams.length;
-	
+
 	return new Promise((resolve, reject) => {
 		for(var i = 0; i < initialStreamsLength; ++i) {
 			var s = streams.shift();
@@ -176,13 +175,18 @@ function processStream(streams, callback) {
 
 function saveStream(stream, fileName) {
 	// Need to specify how the input stream is built. In this example we use
-	// signed 16-bit little endian PCM audio at 44100Hz and two channels
+	// signed 16-bit little endian PCM audio at 48kHz and two channels
+	// Note: Input audio stream is actually 44.1kHz, but we need to tell it to use
+	// 48kHz to make it sound 'normal' (else frequency is too low and it sound
+	// a lot lower pitch than the person's normal speakig voice) 
+	const fs = require('fs');
+	stream.pipe(fs.createWriteStream("hej"));
 	return new Promise((resolve, reject) => {
 		var command = ffmpeg()
 			.input(stream)
 			.inputOptions([
 				'-f s16le',
-				'-ar 44.1k',
+				'-ar 48k',
 				'-ac 2'])
 			.audioCodec('libmp3lame')
 			.on('error', (err) => {
