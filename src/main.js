@@ -122,7 +122,7 @@ function recVoice(userId, guildId) {
 function doClip(seconds, textChannel, clipHandler) {
 	// Need to wait for reading from stream to fully finish before
 	// attempting to edit it
-	processStream(streams, function(buffers) {
+	processStream(streams).then((buffers) => {
 		// Need to concatenate the buffers to make pcm-util and audio-buffers
 		// read them correctly
 		const shorterStream = editBuffer(Buffer.concat(buffers), seconds);
@@ -132,7 +132,7 @@ function doClip(seconds, textChannel, clipHandler) {
 
 		// Do something with the clipped audio
 		clipHandler(shorterStream, textChannel);
-	});
+	}).catch((error) => console.log(error));
 }
 
 function uploadVoice(stream, textChannel) {
@@ -155,20 +155,26 @@ function processStream(streams, callback) {
 	var bufs = [];
 	var finished = 0;
 	const initialStreamsLength = streams.length;
-	for(var i = 0; i < initialStreamsLength; ++i) {
-		var s = streams.shift();
-		s.on('data', function(d) { 
-			bufs.push(d); 
-		});
-		s.on('end', function() {
-			if(++finished === initialStreamsLength) {
-				callback(bufs);
-			}
-		});
-	}
+	
+	return new Promise((resolve, reject) => {
+		for(var i = 0; i < initialStreamsLength; ++i) {
+			var s = streams.shift();
+			s.on('data', function(d) { 
+				bufs.push(d); 
+			});
+			s.on('end', function() {
+				if(++finished === initialStreamsLength) {
+					resolve(bufs);
+				}
+			});
+			s.on('error', (error) => {
+				reject(error);
+			})
+		}		
+	});
 }
 
-function saveStream(stream, fileName, callback) {
+function saveStream(stream, fileName) {
 	// Need to specify how the input stream is built. In this example we use
 	// signed 16-bit little endian PCM audio at 44100Hz and two channels
 	return new Promise((resolve, reject) => {
