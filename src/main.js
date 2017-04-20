@@ -72,13 +72,13 @@ client.on('message', m => {
 
 	if(m.content.startsWith('/play')) {
 		const seconds = getSeconds(m);
-		doClip(seconds, m.guild.id, playVoice);
+		doClip(seconds, m.channel, playVoice);
 	}
 
 	if(m.content.startsWith('/clip')) {
 		const seconds = getSeconds(m);
 		console.log(seconds);
-		doClip(seconds, m.guild.id, uploadVoice);
+		doClip(seconds, m.channel, uploadVoice);
 	}
 });
 // 163947791729557504
@@ -129,7 +129,7 @@ function recVoice(userId, guildId) {
  * @param  {[type]} guildId The guild in which voice will be played to the
  * available voice connection.
  */
-function doClip(seconds, guildId, clipHandler) {
+function doClip(seconds, textChannel, clipHandler) {
 	// Need to wait for reading from stream to fully finish before
 	// attempting to edit it
 	processStream(streams, function(buffers) {
@@ -137,18 +137,20 @@ function doClip(seconds, guildId, clipHandler) {
 		// read them correctly
 		const shorterStream = editBuffer(Buffer.concat(buffers), seconds);
 		
-		// Pushing an extra null here is necessary in order to make it pipeable
+		// Pushing an extra null here is necessary in order to make the stream pipeable
 		shorterStream.push(null);
 
 		// Do something with the clipped audio
-		clipHandler(shorterStream, guildId);
+		clipHandler(shorterStream, textChannel);
 	});
 }
 
-function uploadVoice(stream, guildId) {
+function uploadVoice(stream, textChannel) {
 	const outputFile = 'libfile.mp3';
 	saveStream(stream, outputFile, function() {
-		aws.upload(outputFile);
+		aws.upload(outputFile).then((fileUrl) => {
+			textChannel.sendMessage('File uploaded! URL: ' + fileUrl);
+		}).catch((error) => console.log(error));
 		
 	});
 }
