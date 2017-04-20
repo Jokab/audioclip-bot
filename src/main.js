@@ -137,13 +137,14 @@ function doClip(seconds, textChannel, clipHandler) {
 
 function uploadVoice(stream, textChannel) {
 	const outputFile = 'libfile.mp3';
-	saveStream(stream, outputFile, function() {
+
+	saveStream(stream, outputFile).then(() => {
 		aws.upload(outputFile)
 		.then((fileUrl) => {
 			textChannel.sendMessage('File uploaded! URL: ' + fileUrl);
 		})
-		.catch((error) => console.log(error));		
-	});
+		.catch((error) => console.log(error));
+	}).catch((error) => console.log(error));
 }
 
 function playVoice(stream, guildId) {
@@ -170,18 +171,23 @@ function processStream(streams, callback) {
 function saveStream(stream, fileName, callback) {
 	// Need to specify how the input stream is built. In this example we use
 	// signed 16-bit little endian PCM audio at 44100Hz and two channels
-	var command = ffmpeg()
-		.input(stream)
-		.inputOptions([
-			'-f s16le',
-			'-ar 44.1k',
-			'-ac 2'])
-		.audioCodec('libmp3lame')
-		.on('end', () => {
-			console.log("Finished saving file.");
-			callback();
-		})
-		.save(fileName)
+	return new Promise((resolve, reject) => {
+		var command = ffmpeg()
+			.input(stream)
+			.inputOptions([
+				'-f s16le',
+				'-ar 44.1k',
+				'-ac 2'])
+			.audioCodec('libmp3lame')
+			.on('error', (err) => {
+				reject(err);
+			})
+			.on('end', () => {
+				console.log("Finished saving file.");
+				resolve();
+			})
+			.save(fileName)
+	});
 }
 
 function editBuffer(buffer, seconds) {
