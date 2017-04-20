@@ -146,9 +146,10 @@ function doClip(seconds, guildId, clipHandler) {
 }
 
 function uploadVoice(stream, guildId) {
-	const outputFile = 'libfile.wav';
+	const outputFile = 'libfile.mp3';
 	saveStream(stream, outputFile, function() {
 		aws.upload(outputFile);
+		
 	});
 }
 
@@ -182,12 +183,15 @@ function saveStream(stream, fileName, callback) {
 			'-f s16le',
 			'-ar 44.1k',
 			'-ac 2'])
-		.output(fileName)
+		.audioCodec('libmp3lame')
 		.on('end', () => {
 			console.log("Finished saving file.");
 			callback();
 		})
-		.run()
+		.save(fileName)
+	
+	//var command = ffmpeg('./logo.png')
+	//	.save('gen.avi')
 }
 
 function editBuffer(buffer, seconds) {
