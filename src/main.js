@@ -9,6 +9,7 @@ const abUtil = require('audio-buffer-utils');
 const Readable = require('stream').Readable
 const aws = require('./aws.js');
 const ffmpeg = require('fluent-ffmpeg');
+const VoiceConnection = require('./voiceconnection.js')
 
 client.on('ready', () =>  {
 	console.log("I am ready!");
@@ -18,21 +19,22 @@ client.login(auth.token)
 	.then(atoken => console.log('Logged in with token: ' + atoken))
 	.catch(console.error);
 
-const conns = {};
+const conns = new Map();
+
 
 client.on('message', m => {
 	if(m.content.startsWith('/join')) {
 		const channelToJoin = m.guild.channels.get(m.content.split(' ')[1]) || m.member.voiceChannel;
 		if(channelToJoin && channelToJoin.type === 'voice') {
-			if(conns[m.guild.id] !== undefined && conns[m.guild.id].channel === channelToJoin) {
+			if(conns.get(m.guild.id) && conns.get(m.guild.id).connection.channel === channelToJoin) {
 				console.log('Already connected to voice channel ' + channelToJoin.name);
 			} else {
 				channelToJoin.join()
 					.then(connection => {
 						console.log('Successfully connected to channel ' + channelToJoin.name);
-						conns[m.guild.id] = connection;
+						conns.set(m.guild.id, new VoiceConnection(client, connection));
 					})
-					.catch(connection => console.log('Unable to connect to channel ' + channelToJoin.name));
+					.catch(error => console.log('Unable to connect to channel ' + channelToJoin.name + '. Error: ' + error));
 			}
 		}
 	}
@@ -177,10 +179,8 @@ function saveStream(stream, fileName) {
 	// Need to specify how the input stream is built. In this example we use
 	// signed 16-bit little endian PCM audio at 48kHz and two channels
 	// Note: Input audio stream is actually 44.1kHz, but we need to tell it to use
-	// 48kHz to make it sound 'normal' (else frequency is too low and it sound
-	// a lot lower pitch than the person's normal speakig voice) 
-	const fs = require('fs');
-	stream.pipe(fs.createWriteStream("hej"));
+	// 48kHz to make it sound 'normal' (else frequency is too low and it sounds
+	// a lot lower pitch than the person's normal speaking voice) 
 	return new Promise((resolve, reject) => {
 		var command = ffmpeg()
 			.input(stream)
