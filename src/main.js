@@ -21,7 +21,6 @@ client.login(auth.token)
 
 const conns = new Map();
 
-
 client.on('message', m => {
 	if(m.content.startsWith('/join')) {
 		const channelToJoin = m.guild.channels.get(m.content.split(' ')[1]) || m.member.voiceChannel;
@@ -47,6 +46,7 @@ client.on('message', m => {
 			console.log('Can\'t leave when not connected to a channel');
 		}
 	}
+
 	if(m.content.startsWith('/rec')) {
 		const args = m.content.split(' ');
 		if(args.length < 2) {
