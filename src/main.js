@@ -26,7 +26,7 @@ client.on('message', m => {
 	if(m.content.startsWith('/join')) {
 		const channelToJoin = m.guild.channels.get(m.content.split(' ')[1]) || m.member.voiceChannel;
 		if(channelToJoin && channelToJoin.type === 'voice') {
-			if(conns.get(m.guild.id) && conns.get(m.guild.id).connection.channel === channelToJoin) {
+			if(conns.has(m.guild.id) && conns.get(m.guild.id).connection.channel === channelToJoin) {
 				console.log('Already connected to voice channel ' + channelToJoin.name);
 			} else {
 				channelToJoin.join()
@@ -40,10 +40,9 @@ client.on('message', m => {
 	}
 
 	if(m.content.startsWith('/leave')) {
-		if(conns[m.guild.id] !== undefined) {
-			conns[m.guild.id].disconnect();
-			console.log("Left voice channel " + conns[m.guild.id].channel.name);
-			delete conns[m.guild.id];
+		if(conns.has(m.guild.id)) {
+			conns.get(m.guild.id).disconnect();
+			conns.delete(m.guild.id);
 		} else {
 			console.log('Can\'t leave when not connected to a channel');
 		}

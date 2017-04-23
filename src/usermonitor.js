@@ -12,6 +12,8 @@ class VoiceChannelMonitor extends EventEmitter {
 				this.emit('userLeft', oldMember);
 			}
 		});
+
+		this.on('removeListener', () => console.log("oh no they removed us!!"));
 	};
 }
 

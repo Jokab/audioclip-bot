@@ -23,6 +23,12 @@ class VoiceConnection {
 	stopRecording(guildMember) {
 		console.log("stopped recording!", guildMember.user.username)
 	}
+
+	disconnect() {
+		console.log("Left channel", this.connection.channel.name);
+		this.connection.disconnect();
+		this.monitor.removeAllListeners(); 
+	}
 }
 
 module.exports = VoiceConnection;
