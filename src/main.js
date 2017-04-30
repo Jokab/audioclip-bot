@@ -58,13 +58,21 @@ client.on('message', m => {
 	}
 
 	if(m.content.startsWith('/play')) {
-		const seconds = getSeconds(m);
-		clipper.doClip(conns.get(m.guild.id, seconds, m.channel), seconds, m.channel, clipper.clipHandlers.PLAY_VOICE);
+		if(!(conns.has(m.guild.id) && conns.get(m.guild.id).streams)) {
+			m.reply("Cannot play when no voice has been recorded!");
+		} else { 
+			const seconds = getSeconds(m);
+			clipper.doClip(conns.get(m.guild.id, seconds, m.channel), seconds, m.channel, clipper.clipHandlers.PLAY_VOICE);
+		}
 	}
 
 	if(m.content.startsWith('/clip')) {
-		const seconds = getSeconds(m);
-		clipper.doClip(conns.get(m.guild.id, seconds, m.channel), seconds, m.channel, clipper.clipHandlers.UPLOAD_VOICE);
+		if(!(conns.has(m.guild.id) && conns.get(m.guild.id).streams)) {
+			m.reply("Cannot clip when no voice has been recorded!");
+		} else { 
+			const seconds = getSeconds(m);
+			clipper.doClip(conns.get(m.guild.id, seconds, m.channel), seconds, m.channel, clipper.clipHandlers.UPLOAD_VOICE);
+		}
 	}
 });
 
