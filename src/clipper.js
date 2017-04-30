@@ -108,7 +108,9 @@ function saveStream(stream, fileName) {
 function editBuffer(buffer, seconds) {
 	const defaultSampleRate = pcmUtil.defaults.sampleRate;
 	var audioBuf = pcmUtil.toAudioBuffer(buffer);
-	var modifiedBuffer = abUtil.slice(audioBuf,0,seconds*defaultSampleRate);
+
+	// Plays seconds time starting from the end
+	var modifiedBuffer = abUtil.slice(audioBuf, seconds*defaultSampleRate, audioBuf.length);
 	var shorterBuffer = pcmUtil.toBuffer(modifiedBuffer);
 	var shorterStream = new Readable();
 	shorterStream.push(shorterBuffer);
