@@ -39,17 +39,6 @@ class VoiceConnection {
 		this.connection.disconnect();
 		this.monitor.removeAllListeners(); 
 	}
-
-	/*recVoice(userId, guildId) {
-        var receiver = this.connection.createReceiver();
-        this.connection.on('speaking', (user, speaking) => {
-        	console.log('speaking? ' + speaking);
-            if (speaking) {
-                var stream = receiver.createPCMStream(userId);
-                this.streams.set(stream);
-            }
-        });
-    }*/
 }
 
 module.exports = VoiceConnection;

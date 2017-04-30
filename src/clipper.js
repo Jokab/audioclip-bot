@@ -6,13 +6,24 @@ const aws = require('./aws.js');
 const ffmpeg = require('fluent-ffmpeg');
 
 /**
+ * Pre-defined functions for handling the voice that is output after
+ * processing and editing. Define your own or use one of these when
+ * calling doClip.
+ */
+var clipHandlers = {
+	PLAY_VOICE: playVoice,
+	UPLOAD_VOICE: uploadVoice
+}
+
+/**
  * Play `seconds` of the currently collected streams to the current voice
  * connection in the specified guild.
  * @param  {int} seconds The amount of seconds to play
  * @param  {[type]} guildId The guild in which voice will be played to the
  * available voice connection.
  * @param  {function} clipHandler function that does something with 
- * clipped audio, for example play it back to Discord 
+ * clipped audio, for example play it back to Discord. Define your own or
+ * use from clipHandlers.
  */
 function doClip(voiceConnection, seconds, textChannel, clipHandler) {
 	var streams = voiceConnection.streams.get("163947791729557504");
@@ -27,7 +38,7 @@ function doClip(voiceConnection, seconds, textChannel, clipHandler) {
 		clippedStream.push(null);
 
 		// Do something with the clipped audio
-		playVoice(clippedStream, textChannel, voiceConnection);
+		clipHandler(clippedStream, textChannel, voiceConnection);
 	}).catch((error) => console.log(error));
 }
 
@@ -106,3 +117,4 @@ function editBuffer(buffer, seconds) {
 }
 
 exports.doClip = doClip;
+exports.clipHandlers = clipHandlers;
