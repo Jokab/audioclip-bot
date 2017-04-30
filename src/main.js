@@ -9,6 +9,8 @@ const abUtil = require('audio-buffer-utils');
 const Readable = require('stream').Readable
 const aws = require('./aws.js');
 const ffmpeg = require('fluent-ffmpeg');
+const VoiceConnection = require('./voiceconnection.js');
+const clipper = require('./clipper.js');
 
 client.on('ready', () =>  {
 	console.log("I am ready!");
@@ -18,34 +20,34 @@ client.login(auth.token)
 	.then(atoken => console.log('Logged in with token: ' + atoken))
 	.catch(console.error);
 
-const conns = {};
+const conns = new Map();
 
 client.on('message', m => {
 	if(m.content.startsWith('/join')) {
 		const channelToJoin = m.guild.channels.get(m.content.split(' ')[1]) || m.member.voiceChannel;
 		if(channelToJoin && channelToJoin.type === 'voice') {
-			if(conns[m.guild.id] !== undefined && conns[m.guild.id].channel === channelToJoin) {
+			if(conns.has(m.guild.id) && conns.get(m.guild.id).connection.channel === channelToJoin) {
 				console.log('Already connected to voice channel ' + channelToJoin.name);
 			} else {
 				channelToJoin.join()
 					.then(connection => {
 						console.log('Successfully connected to channel ' + channelToJoin.name);
-						conns[m.guild.id] = connection;
+						conns.set(m.guild.id, new VoiceConnection(client, connection));
 					})
-					.catch(connection => console.log('Unable to connect to channel ' + channelToJoin.name));
+					.catch(error => console.log('Unable to connect to channel ' + channelToJoin.name + '. Error: ' + error));
 			}
 		}
 	}
 
 	if(m.content.startsWith('/leave')) {
-		if(conns[m.guild.id] !== undefined) {
-			conns[m.guild.id].disconnect();
-			console.log("Left voice channel " + conns[m.guild.id].channel.name);
-			delete conns[m.guild.id];
+		if(conns.has(m.guild.id)) {
+			conns.get(m.guild.id).disconnect();
+			conns.delete(m.guild.id);
 		} else {
 			console.log('Can\'t leave when not connected to a channel');
 		}
 	}
+
 	if(m.content.startsWith('/rec')) {
 		const args = m.content.split(' ');
 		if(args.length < 2) {
@@ -57,20 +59,19 @@ client.on('message', m => {
 				console.log('User to record does not seem to exist');
 			} else {
 				console.log('Listening to voice of user ' + userName + ' (ID: ' + userId + ')');
-				recVoice(userId, m.guild.id);
+				conns.get(m.guild.id).record(userId);
 			}
 		}
 	}
 
 	if(m.content.startsWith('/play')) {
 		const seconds = getSeconds(m);
-		doClip(seconds, m.channel, playVoice);
+		clipper.doClip(conns.get(m.guild.id, seconds, m.channel), seconds, m.channel, clipper.clipHandlers.PLAY_VOICE);
 	}
 
 	if(m.content.startsWith('/clip')) {
 		const seconds = getSeconds(m);
-		console.log(seconds);
-		doClip(seconds, m.channel, uploadVoice);
+		clipper.doClip(conns.get(m.guild.id, seconds, m.channel), seconds, m.channel, clipper.clipHandlers.UPLOAD_VOICE);
 	}
 });
 
@@ -95,121 +96,6 @@ function getSeconds(message) {
 function lookupUser(userName, guild) {
 	const memberList = guild.members;
 	return memberList.keyArray().find(key => memberList.get(key).user.username === userName);
-}
-
-let streams = [];
-function recVoice(userId, guildId) {
-    if (conns[guildId] !== undefined) {
-        var receiver = conns[guildId].createReceiver();
-        conns[guildId].on('speaking', (user, speaking) => {
-        	console.log('speaking? ' + speaking);
-            if (speaking) {
-                var stream = receiver.createPCMStream(userId);
-                streams.push(stream);
-            }
-        });
-    }
-}
-
-/**
- * Play `seconds` of the currently collected streams to the current voice
- * connection in the specified guild.
- * @param  {int} seconds The amount of seconds to play
- * @param  {[type]} guildId The guild in which voice will be played to the
- * available voice connection.
- */
-function doClip(seconds, textChannel, clipHandler) {
-	// Need to wait for reading from stream to fully finish before
-	// attempting to edit it
-	processStream(streams).then((buffers) => {
-		streams = [];
-		// Need to concatenate the buffers to make pcm-util and audio-buffers
-		// read them correctly
-		const shorterStream = editBuffer(Buffer.concat(buffers), seconds);
-		
-		// Pushing an extra null here is necessary in order to make the stream pipeable
-		shorterStream.push(null);
-
-		// Do something with the clipped audio
-		clipHandler(shorterStream, textChannel);
-	}).catch((error) => console.log(error));
-}
-
-function uploadVoice(stream, textChannel) {
-	const outputFile = 'libfile.mp3';
-
-	saveStream(stream, outputFile).then(() => {
-		aws.upload(outputFile)
-		.then((fileUrl) => {
-			textChannel.sendMessage('File uploaded! URL: ' + fileUrl);
-		})
-		.catch((error) => console.log(error));
-	}).catch((error) => console.log(error));
-}
-
-function playVoice(stream, textChannel) {
-	conns[textChannel.guild.id].playConvertedStream(stream);
-}
-
-function processStream(streams) {
-	var bufs = [];
-	var finished = 0;
-	const initialStreamsLength = streams.length;
-
-	return new Promise((resolve, reject) => {
-		for(var i = 0; i < initialStreamsLength; ++i) {
-			var s = streams.shift();
-			s.on('data', function(d) { 
-				bufs.push(d); 
-			});
-			s.on('end', function() {
-				if(++finished === initialStreamsLength) {
-					resolve(bufs);
-				}
-			});
-			s.on('error', (error) => {
-				reject(error);
-			})
-		}		
-	});
-}
-
-function saveStream(stream, fileName) {
-	// Need to specify how the input stream is built. In this example we use
-	// signed 16-bit little endian PCM audio at 48kHz and two channels
-	// Note: Input audio stream is actually 44.1kHz, but we need to tell it to use
-	// 48kHz to make it sound 'normal' (else frequency is too low and it sound
-	// a lot lower pitch than the person's normal speakig voice) 
-	const fs = require('fs');
-	stream.pipe(fs.createWriteStream("hej"));
-	return new Promise((resolve, reject) => {
-		var command = ffmpeg()
-			.input(stream)
-			.inputOptions([
-				'-f s16le',
-				'-ar 48k',
-				'-ac 2'])
-			.audioCodec('libmp3lame')
-			.on('error', (err) => {
-				reject(err);
-			})
-			.on('end', () => {
-				console.log("Finished saving file.");
-				resolve();
-			})
-			.save(fileName)
-	});
-}
-
-function editBuffer(buffer, seconds) {
-	const defaultSampleRate = pcmUtil.defaults.sampleRate;
-	var audioBuf = pcmUtil.toAudioBuffer(buffer);
-	var modifiedBuffer = abUtil.slice(audioBuf,0,seconds*defaultSampleRate);
-	var shorterBuffer = pcmUtil.toBuffer(modifiedBuffer);
-	var shorterStream = new Readable();
-	shorterStream.push(shorterBuffer);
-
-	return shorterStream;
 }
 
 function playYoutube() {
