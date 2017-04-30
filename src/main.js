@@ -9,7 +9,8 @@ const abUtil = require('audio-buffer-utils');
 const Readable = require('stream').Readable
 const aws = require('./aws.js');
 const ffmpeg = require('fluent-ffmpeg');
-const VoiceConnection = require('./voiceconnection.js')
+const VoiceConnection = require('./voiceconnection.js');
+const clipper = require('./clipper.js');
 
 client.on('ready', () =>  {
 	console.log("I am ready!");
@@ -58,14 +59,14 @@ client.on('message', m => {
 				console.log('User to record does not seem to exist');
 			} else {
 				console.log('Listening to voice of user ' + userName + ' (ID: ' + userId + ')');
-				recVoice(userId, m.guild.id);
+				conns.get(m.guild.id).record(userId);
 			}
 		}
 	}
 
 	if(m.content.startsWith('/play')) {
 		const seconds = getSeconds(m);
-		doClip(seconds, m.channel, playVoice);
+		clipper.doClip(conns.get(m.guild.id, seconds, m.channel), seconds, m.channel);
 	}
 
 	if(m.content.startsWith('/clip')) {
@@ -99,18 +100,7 @@ function lookupUser(userName, guild) {
 }
 
 let streams = [];
-function recVoice(userId, guildId) {
-    if (conns[guildId] !== undefined) {
-        var receiver = conns[guildId].createReceiver();
-        conns[guildId].on('speaking', (user, speaking) => {
-        	console.log('speaking? ' + speaking);
-            if (speaking) {
-                var stream = receiver.createPCMStream(userId);
-                streams.push(stream);
-            }
-        });
-    }
-}
+
 
 /**
  * Play `seconds` of the currently collected streams to the current voice
