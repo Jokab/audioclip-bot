@@ -122,6 +122,7 @@ function doClip(seconds, textChannel, clipHandler) {
 	// Need to wait for reading from stream to fully finish before
 	// attempting to edit it
 	processStream(streams).then((buffers) => {
+		streams = [];
 		// Need to concatenate the buffers to make pcm-util and audio-buffers
 		// read them correctly
 		const shorterStream = editBuffer(Buffer.concat(buffers), seconds);
@@ -146,8 +147,8 @@ function uploadVoice(stream, textChannel) {
 	}).catch((error) => console.log(error));
 }
 
-function playVoice(stream, guildId) {
-	conns[guildId].playConvertedStream(stream);
+function playVoice(stream, textChannel) {
+	conns[textChannel.guild.id].playConvertedStream(stream);
 }
 
 function processStream(streams) {
