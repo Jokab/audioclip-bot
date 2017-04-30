@@ -72,7 +72,7 @@ client.on('message', m => {
 	if(m.content.startsWith('/clip')) {
 		const seconds = getSeconds(m);
 		console.log(seconds);
-		doClip(seconds, m.channel, uploadVoice);
+		clipper.doClip(conns.get(m.guild.id, seconds, m.channel), seconds, m.channel);
 	}
 });
 
