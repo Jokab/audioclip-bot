@@ -26,7 +26,7 @@ var clipHandlers = {
  * use from clipHandlers.
  */
 function doClip(voiceConnection, seconds, textChannel, clipHandler) {
-	var streams = voiceConnection.streams.get("163947791729557504");
+	var streams = voiceConnection.streams;
 	// Need to wait for reading from stream to fully finish before
 	// attempting to edit it
 	processStream(streams).then((buffers) => {

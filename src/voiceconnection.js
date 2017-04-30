@@ -5,7 +5,7 @@ class VoiceConnection {
 	constructor(client, connection) {
 		this.connection = connection;
 		this.client = client;
-		this.streams = new Map();
+		this.streams = [];
 
 		this.monitor = new VoiceChannelMonitor(client, connection.channel);
 		this.monitor.on('userJoined', (guildMember) => {
@@ -24,8 +24,7 @@ class VoiceConnection {
         	console.log('speaking? ' + speaking);
             if (speaking) {
                 var stream = receiver.createPCMStream(userId);
-                if(!this.streams.has(user.id)) this.streams.set(user.id, []);
-                this.streams.get(user.id).push(stream);
+                this.streams.push(stream);
             }
         });
 	}

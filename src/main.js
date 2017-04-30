@@ -44,7 +44,7 @@ client.on('message', m => {
 	if(m.content.startsWith('/rec')) {
 		const args = m.content.split(' ');
 		if(args.length < 2) {
-			console.log('Please specify a user to record');
+			m.reply('Please specify a user to record');
 		} else {
 			const userName = args[1];
 			const userId = lookupUser(userName, m.guild);
