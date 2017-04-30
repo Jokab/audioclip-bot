@@ -3,12 +3,6 @@
 const Discord = require('discord.js');
 const client = new Discord.Client();
 const auth = require('./auth.json');
-const pcmUtil = require('pcm-util');
-const AudioBuffer = require('audio-buffer');
-const abUtil = require('audio-buffer-utils');
-const Readable = require('stream').Readable
-const aws = require('./aws.js');
-const ffmpeg = require('fluent-ffmpeg');
 const VoiceConnection = require('./voiceconnection.js');
 const clipper = require('./clipper.js');
 
@@ -29,8 +23,7 @@ client.on('message', m => {
 			if(conns.has(m.guild.id) && conns.get(m.guild.id).connection.channel === channelToJoin) {
 				console.log('Already connected to voice channel ' + channelToJoin.name);
 			} else {
-				channelToJoin.join()
-					.then(connection => {
+				channelToJoin.join().then(connection => {
 						console.log('Successfully connected to channel ' + channelToJoin.name);
 						conns.set(m.guild.id, new VoiceConnection(client, connection));
 					})
