@@ -6,6 +6,8 @@ class VoiceConnection {
 		this.connection = connection;
 		this.client = client;
 		this.streams = [];
+		this.receiver = this.connection.createReceiver();
+		this.start = 0;
 
 		this.monitor = new VoiceChannelMonitor(client, connection.channel);
 		this.monitor.on('userJoined', (guildMember) => {
@@ -19,12 +21,19 @@ class VoiceConnection {
 
 	record(userId) {
 		console.log("recording!", userId);
-        const receiver = this.connection.createReceiver();
         this.connection.on('speaking', (user, speaking) => {
-        	console.log('speaking? ' + speaking);
+        	console.log('speaking? ', speaking, user.username);
             if (speaking) {
-                var stream = receiver.createPCMStream(userId);
+            	this.start = Date.now();
+                var stream = this.receiver.createPCMStream(user.id);
+                //console.log(stream);
+                stream.on('end', () => {
+                	console.log((Date.now() - this.start) / 1000);
+                });
                 this.streams.push(stream);
+                console.log(this.streams.length);
+            } else {
+            	
             }
         });
 	}
@@ -36,8 +45,11 @@ class VoiceConnection {
 	disconnect() {
 		console.log("Left channel", this.connection.channel.name);
 		this.connection.disconnect();
+		this.receiver.destroy();
 		this.monitor.removeAllListeners(); 
 	}
+
+
 }
 
 module.exports = VoiceConnection;

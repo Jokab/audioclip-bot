@@ -16,6 +16,8 @@ client.login(auth.token)
 
 const conns = new Map();
 
+var dispatcher = null;
+
 client.on('message', m => {
 	if(m.content.startsWith('/join')) {
 		const channelToJoin = m.guild.channels.get(m.content.split(' ')[1]) || m.member.voiceChannel;
@@ -48,6 +50,7 @@ client.on('message', m => {
 		} else {
 			const userName = args[1];
 			const userId = lookupUser(userName, m.guild);
+			//console.log("Now recording", m.guild.fetchMember(userId));
 			if(userId === undefined) {
 				console.log('User to record does not seem to exist');
 			} else {
@@ -61,8 +64,21 @@ client.on('message', m => {
 		if(!(conns.has(m.guild.id) && conns.get(m.guild.id).streams)) {
 			m.reply("Cannot play when no voice has been recorded!");
 		} else { 
+			var url = m.content.split(' ')[1];
 			const seconds = getSeconds(m);
-			clipper.doClip(conns.get(m.guild.id, seconds, m.channel), seconds, m.channel, clipper.clipHandlers.PLAY_VOICE);
+			if(dispatcher) {
+				if(!url) {
+					dispatcher.resume();
+				} else {
+					dispatcher.end();
+					dispatcher = clipper.playYoutube(conns.get(m.guild.id), url);
+
+				}
+			} else {
+				dispatcher = clipper.playYoutube(conns.get(m.guild.id), url);
+			}
+				
+			//clipper.doClip(conns.get(m.guild.id), seconds, m.channel, clipper.clipHandlers.PLAY_VOICE);
 		}
 	}
 
@@ -72,6 +88,17 @@ client.on('message', m => {
 		} else { 
 			const seconds = getSeconds(m);
 			clipper.doClip(conns.get(m.guild.id, seconds, m.channel), seconds, m.channel, clipper.clipHandlers.UPLOAD_VOICE);
+		}
+	}
+	if(m.content.startsWith("/pause")) {
+		if(dispatcher) {
+			dispatcher.pause();
+		}
+	}
+	if(m.content.startsWith("/stop")) {
+		if(dispatcher) {
+			dispatcher.end();
+			dispatcher = null;
 		}
 	}
 });
@@ -99,10 +126,3 @@ function lookupUser(userName, guild) {
 	return memberList.keyArray().find(key => memberList.get(key).user.username === userName);
 }
 
-function playYoutube() {
-	const ytdl = require('ytdl-core');
-	const streamOptions = { seek: 0, volume: 1 };
-    const stream = ytdl('https://www.youtube.com/watch?v=XAWgeLF9EVQ', {filter : 'audioonly'});
-  	console.log(stream);
-    const dispatcher = conns[0].playStream(stream, streamOptions);
-}

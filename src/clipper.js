@@ -45,12 +45,12 @@ function doClip(voiceConnection, seconds, textChannel, clipHandler) {
 function uploadVoice(stream, textChannel) {
 	const outputFile = 'libfile.mp3';
 
-	saveStream(stream, outputFile).then(() => {
+	saveStream(stream, outputFile)/*.then(() => {
 		aws.upload(outputFile).then((fileUrl) => {
 			textChannel.sendMessage('Clip uploaded! URL: ' + fileUrl);
 		})
 		.catch((error) => console.log(error));
-	}).catch((error) => console.log(error));
+	}).catch((error) => console.log(error));*/
 }
 
 function playVoice(stream, textChannel, voiceConnection) {
@@ -86,6 +86,10 @@ function saveStream(stream, fileName) {
 	// Note: Input audio stream is actually 44.1kHz, but we need to tell it to use
 	// 48kHz to make it sound 'normal' (else frequency is too low and it sounds
 	// a lot lower pitch than the person's normal speaking voice) 
+	const fs = require('fs');
+	var s1 = fs.createWriteStream("stream2");
+	stream.pipe(s1);
+	/*
 	return new Promise((resolve, reject) => {
 		var command = ffmpeg()
 			.input(stream)
@@ -103,6 +107,7 @@ function saveStream(stream, fileName) {
 			})
 			.save(fileName)
 	});
+	*/
 }
 
 function editBuffer(buffer, seconds) {
@@ -110,7 +115,8 @@ function editBuffer(buffer, seconds) {
 	var audioBuf = pcmUtil.toAudioBuffer(buffer);
 
 	// Plays seconds time starting from the end
-	var modifiedBuffer = abUtil.slice(audioBuf, seconds*defaultSampleRate, audioBuf.length);
+	//var modifiedBuffer = abUtil.slice(audioBuf, seconds*defaultSampleRate, audioBuf.length);
+	var modifiedBuffer = abUtil.slice(audioBuf, 0,seconds*defaultSampleRate);
 	var shorterBuffer = pcmUtil.toBuffer(modifiedBuffer);
 	var shorterStream = new Readable();
 	shorterStream.push(shorterBuffer);
@@ -118,5 +124,15 @@ function editBuffer(buffer, seconds) {
 	return shorterStream;
 }
 
+function playYoutube(voiceConnection, url) {
+	const ytdl = require('ytdl-core');
+	const streamOptions = { seek: 0, volume: 0.3 };
+    const stream = ytdl(url, {filter : 'audioonly'});
+  	console.log(stream);
+    return voiceConnection.connection.playStream(stream, streamOptions);
+}
+
+
 exports.doClip = doClip;
 exports.clipHandlers = clipHandlers;
+exports.playYoutube = playYoutube;
