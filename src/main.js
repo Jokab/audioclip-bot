@@ -50,9 +50,9 @@ client.on('message', m => {
 		} else {
 			const args = m.content.split(' ');
 			if(args.length < 2) {
-				let unrecordedUsers = getAllUnrecordedUsers(conns.get(m.guild.id));
+				let connectedUsers = getAllConnectedUsers(conns.get(m.guild.id));
 				
-				conns.get(m.guild.id).record(unrecordedUsers);
+				conns.get(m.guild.id).record(connectedUsers);
 			} else {
 				const userName = args[1];
 				const userId = lookupUser(userName, m.guild);
@@ -109,7 +109,7 @@ client.on('message', m => {
 	}
 });
 
-function getAllUnrecordedUsers(voiceConnection) {
+function getAllConnectedUsers(voiceConnection) {
 	let memberIds = [];
 	voiceConnection.connection.channel.members.forEach(m => memberIds.push(m.user.id));
 	return memberIds;
