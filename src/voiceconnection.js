@@ -14,7 +14,8 @@ class VoiceConnection {
 		this.streams = [];
 		this.receiver = this.connection.createReceiver();
 		this.start = Date.now();
-		this.i = 0;
+
+		this.recordingUsers = new Set();
 
 		this.monitor = new VoiceChannelMonitor(client, connection.channel);
 		this.monitor.on('userJoined', (guildMember) => {
@@ -24,19 +25,21 @@ class VoiceConnection {
 		this.monitor.on('userLeft', (guildMember) => {
 			this.stopRecording(guildMember.id);
 		});
-	}
 
-	record(userId) {
-		console.log("recording!", userId);
         this.connection.on('speaking', (user, speaking) => {
         	console.log('speaking? ', speaking, user.username);
-            if (speaking) {
+            if (speaking && this.recordingUsers.has(user.id)) {
                 var stream = this.receiver.createPCMStream(user.id);
                 const startTime = (Date.now() - this.start) / 1000;
                 this.streams.push(new StreamPart(startTime, stream));        	
             } else {
             }
         });
+	}
+
+	record(userIds) {
+		userIds.forEach(id => this.recordingUsers.add(id));
+		console.log("Recording", userIds, "!");
 	}
 
 	stopRecording(userId) {

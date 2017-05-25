@@ -14,6 +14,7 @@ client.login(auth.token)
 	.then(atoken => console.log('Logged in with token: ' + atoken))
 	.catch(console.error);
 
+// Guild ID -> VoiceConnection
 const conns = new Map();
 
 var dispatcher = null;
@@ -44,18 +45,24 @@ client.on('message', m => {
 	}
 
 	if(m.content.startsWith('/rec')) {
-		const args = m.content.split(' ');
-		if(args.length < 2) {
-			m.reply('Please specify a user to record');
+		if(!conns.has(m.guild.id)) {
+			m.reply('I am not connected to a voice channel.');
 		} else {
-			const userName = args[1];
-			const userId = lookupUser(userName, m.guild);
-			//console.log("Now recording", m.guild.fetchMember(userId));
-			if(userId === undefined) {
-				console.log('User to record does not seem to exist');
+			const args = m.content.split(' ');
+			if(args.length < 2) {
+				let unrecordedUsers = getAllUnrecordedUsers(conns.get(m.guild.id));
+				
+				conns.get(m.guild.id).record(unrecordedUsers);
 			} else {
-				console.log('Listening to voice of user ' + userName + ' (ID: ' + userId + ')');
-				conns.get(m.guild.id).record(userId);
+				const userName = args[1];
+				const userId = lookupUser(userName, m.guild);
+				//console.log("Now recording", m.guild.fetchMember(userId));
+				if(userId === undefined) {
+					console.log('User to record does not seem to exist.');
+				} else {
+					console.log('Listening to voice of user ' + userName + ' (ID: ' + userId + ')');
+					conns.get(m.guild.id).record(userId);
+				}
 			}
 		}
 	}
@@ -72,7 +79,6 @@ client.on('message', m => {
 				} else {
 					dispatcher.end();
 					dispatcher = clipper.playYoutube(conns.get(m.guild.id), url);
-
 				}
 			} else {
 				dispatcher = clipper.playYoutube(conns.get(m.guild.id), url);
@@ -102,6 +108,12 @@ client.on('message', m => {
 		}
 	}
 });
+
+function getAllUnrecordedUsers(voiceConnection) {
+	let memberIds = [];
+	voiceConnection.connection.channel.members.forEach(m => memberIds.push(m.user.id));
+	return memberIds;
+}
 
 function getSeconds(message) {
 	const maxSeconds = 60;
