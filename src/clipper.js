@@ -19,26 +19,28 @@ var clipHandlers = {
  * Play `seconds` of the currently collected streams to the current voice
  * connection in the specified guild.
  * @param  {int} seconds The amount of seconds to play
- * @param  {[type]} guildId The guild in which voice will be played to the
- * available voice connection.
+ * @param  {[type]} sourceTextChannel The text channel from which the command
+ * originated
  * @param  {function} clipHandler function that does something with 
  * clipped audio, for example play it back to Discord. Define your own or
  * use from clipHandlers.
  */
-function doClip(voiceConnection, seconds, textChannel, clipHandler) {
+function doClip(voiceConnection, seconds, sourceTextChannel, clipHandler) {
 	var streams = voiceConnection.streams;
+	//console.log(streams, streams.length);
 	// Need to wait for reading from stream to fully finish before
 	// attempting to edit it
-	processStream(streams).then((buffers) => {
+	processStream(streams).then((processedStreams) => {
+		console.log(processedStreams)
 		// Need to concatenate the buffers to make pcm-util and audio-buffers
 		// read them correctly
-		const clippedStream = editBuffer(Buffer.concat(buffers), seconds);
+		const clippedStream = editBuffer(processedStreams, seconds);
 		
 		// Pushing an extra null here is necessary in order to make the stream pipeable
 		clippedStream.push(null);
 
 		// Do something with the clipped audio
-		clipHandler(clippedStream, textChannel, voiceConnection);
+		clipHandler(clippedStream, sourceTextChannel, voiceConnection);
 	}).catch((error) => console.log(error));
 }
 
@@ -58,22 +60,22 @@ function playVoice(stream, textChannel, voiceConnection) {
 }
 
 function processStream(streams) {
-	var bufs = [];
+	//var bufs = [];
 	var finished = 0;
 	const initialStreamsLength = streams.length;
 
 	return new Promise((resolve, reject) => {
-		for(var i = 0; i < initialStreamsLength; ++i) {
-			var s = streams.shift();
-			s.on('data', function(d) { 
-				bufs.push(d); 
+		for(var i = 0; i < initialStreamsLength; i++) {
+			let streamPart = streams[i];
+			streamPart.stream.on('data', function(d) { 
+				streamPart.buffer.push(d); 
 			});
-			s.on('end', function() {
+			streamPart.stream.on('end', function() {
 				if(++finished === initialStreamsLength) {
-					resolve(bufs);
+					resolve(streams);
 				}
 			});
-			s.on('error', (error) => {
+			streamPart.stream.on('error', (error) => {
 				reject(error);
 			})
 		}		
@@ -110,13 +112,26 @@ function saveStream(stream, fileName) {
 	*/
 }
 
-function editBuffer(buffer, seconds) {
-	const defaultSampleRate = pcmUtil.defaults.sampleRate;
-	var audioBuf = pcmUtil.toAudioBuffer(buffer);
+function editBuffer(streams, seconds) {
+	// Using any other sample rate will cause delays when mixing streams. Not sure why atm
+	const sampleRate = 48000;
+	
+	// Use first buffer as base
+	var mainBuffer = abUtil.clone(pcmUtil.toAudioBuffer(Buffer.concat(streams[0].buffer)));
+
+	for(var i = 1; i < streams.length; ++i) {
+		//var aBuf = abUtil.trimRight(pcmUtil.toAudioBuffer(Buffer.concat(streams[i].buffer)), 0.02);
+		var aBuf = pcmUtil.toAudioBuffer(Buffer.concat(streams[i].buffer));
+
+		// Need to round in order for mix function to accept offset
+		const offset = Math.round((streams[i].startTime - streams[0].startTime) * sampleRate);
+		mainBuffer = abUtil.pad(mainBuffer, Math.max(mainBuffer.length, aBuf.length + offset));
+		mainBuffer = abUtil.mix(mainBuffer, aBuf, .5, offset);
+	}
 
 	// Plays seconds time starting from the end
-	//var modifiedBuffer = abUtil.slice(audioBuf, seconds*defaultSampleRate, audioBuf.length);
-	var modifiedBuffer = abUtil.slice(audioBuf, 0,seconds*defaultSampleRate);
+	//var modifiedBuffer = abUtil.slice(audioBuf, seconds*sampleRate, audioBuf.length);
+	var modifiedBuffer = abUtil.slice(mainBuffer, 0,seconds*sampleRate); // mainBuffer bara?
 	var shorterBuffer = pcmUtil.toBuffer(modifiedBuffer);
 	var shorterStream = new Readable();
 	shorterStream.push(shorterBuffer);

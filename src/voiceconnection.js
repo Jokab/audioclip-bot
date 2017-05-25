@@ -1,13 +1,20 @@
 'use strict'
 const VoiceChannelMonitor = require('./usermonitor.js')
 
+function StreamPart(startTime, stream) {
+	this.startTime = startTime;
+	this.stream = stream;
+	this.buffer = [];
+}
+
 class VoiceConnection {
 	constructor(client, connection) {
 		this.connection = connection;
 		this.client = client;
 		this.streams = [];
 		this.receiver = this.connection.createReceiver();
-		this.start = 0;
+		this.start = Date.now();
+		this.i = 0;
 
 		this.monitor = new VoiceChannelMonitor(client, connection.channel);
 		this.monitor.on('userJoined', (guildMember) => {
@@ -24,16 +31,10 @@ class VoiceConnection {
         this.connection.on('speaking', (user, speaking) => {
         	console.log('speaking? ', speaking, user.username);
             if (speaking) {
-            	this.start = Date.now();
                 var stream = this.receiver.createPCMStream(user.id);
-                //console.log(stream);
-                stream.on('end', () => {
-                	console.log((Date.now() - this.start) / 1000);
-                });
-                this.streams.push(stream);
-                console.log(this.streams.length);
+                const startTime = (Date.now() - this.start) / 1000;
+                this.streams.push(new StreamPart(startTime, stream));        	
             } else {
-            	
             }
         });
 	}
